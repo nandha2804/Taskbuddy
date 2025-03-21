@@ -1,11 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Button, Heading, Icon, useToast } from '@chakra-ui/react';
 import { FaGoogle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const Login = () => {
-  const { signInWithGoogle, loading } = useAuth();
+  const { signInWithGoogle, loading, user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/overview');
+    }
+  }, [user, navigate]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -17,6 +26,7 @@ export const Login = () => {
         duration: 3000,
         isClosable: true,
       });
+      navigate('/overview');
     } catch (error) {
       let errorMessage = 'Unable to sign in. Please try again.';
       if (error instanceof Error) {

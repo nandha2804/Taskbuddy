@@ -1,8 +1,68 @@
 # Task Manager
 
-A modern task management application built with React, TypeScript, and Firebase.
+A modern, feature-rich task management application built with React, TypeScript, and Firebase. The application provides a robust platform for managing tasks, collaborating with teams, and staying organized.
 
-## Firebase Setup
+**Live Demo:** [https://taskbuddy-fawn.vercel.app/login](https://taskbuddy-fawn.vercel.app/login)
+
+## Features
+
+- **User Authentication**
+  - Google Sign-in integration
+  - Protected routes and authenticated sessions
+  - User profile management
+
+- **Task Management**
+  - Create, update, and delete tasks
+  - Task categorization (work/personal/shopping/others)
+  - Priority levels (low/medium/high)
+  - Due date tracking
+  - Task assignments
+  - Drag-and-drop task organization
+
+- **Team Collaboration**
+  - Team creation and management
+  - Member invitations
+  - Role-based permissions (admin/member)
+  - Team-specific task views
+  - Collaborative task assignments
+
+- **User Experience**
+  - Responsive Chakra UI design
+  - Dark/light theme support
+  - Real-time updates
+  - Keyboard shortcuts
+  - File attachments support
+  - Drag and drop interface
+
+## Technology Stack
+
+- **Frontend**
+  - React 18.2
+  - TypeScript
+  - Vite (Build tool)
+  - React Router DOM (Routing)
+  - Chakra UI (Component library)
+  - Framer Motion (Animations)
+  - React Query (Data fetching/caching)
+  - React Dropzone (File uploads)
+
+- **Backend/Infrastructure**
+  - Firebase Authentication
+  - Cloud Firestore
+  - Firebase Storage
+  - Firebase Security Rules
+  - Firebase Hosting
+
+## Project Setup
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm/yarn
+- Firebase CLI
+- Git
+
+### Firebase Setup
 
 1. Create a Firebase Project:
    - Go to [Firebase Console](https://console.firebase.google.com)
@@ -40,81 +100,7 @@ A modern task management application built with React, TypeScript, and Firebase.
    firebase deploy --only firestore:rules
    ```
 
-5. Get Firebase Configuration:
-   - Go to Project Settings
-   - Scroll down to "Your apps"
-   - Click web icon (</>)
-   - Register app and get configuration
-
-6. Environment Setup:
-   Create a .env file with your Firebase config:
-   ```
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
-   VITE_FIREBASE_APP_ID=your-app-id
-   VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
-   ```
-
-## Database Structure
-
-### Collections:
-
-1. users
-   ```typescript
-   {
-     id: string;              // Auth UID
-     email: string;           // User email
-     displayName: string;     // User's name
-     photoURL: string;        // Profile picture URL
-     createdAt: timestamp;    // Account creation date
-     lastLoginAt: timestamp;  // Last login date
-   }
-   ```
-
-2. teams
-   ```typescript
-   {
-     id: string;              // Team ID
-     name: string;            // Team name
-     description: string;     // Team description
-     createdBy: string;       // Creator's UID
-     createdAt: timestamp;    // Creation date
-     members: [               // Team members
-       {
-         id: string;         // User UID
-         email: string;      // User email
-         displayName: string;// User name
-         role: string;      // admin/member
-         joinedAt: timestamp;// Join date
-       }
-     ],
-     memberEmails: string[]; // Array of member emails for querying
-     invitedEmails: string[];// Pending invitations
-   }
-   ```
-
-3. tasks
-   ```typescript
-   {
-     id: string;              // Task ID
-     title: string;           // Task title
-     description: string;     // Task description
-     category: string;        // work/personal/shopping/others
-     priority: string;        // low/medium/high
-     completed: boolean;      // Task status
-     userId: string;          // Creator's UID
-     teamId: string;         // Associated team
-     assignedTo: string[];   // Assigned user UIDs
-     dueDate: timestamp;     // Due date
-     createdAt: timestamp;   // Creation date
-     updatedAt: timestamp;   // Last update date
-   }
-   ```
-
-## Development Setup
+### Local Development Setup
 
 1. Clone the repository:
 ```bash
@@ -127,10 +113,20 @@ cd task-manager
 npm install
 ```
 
-3. Set up environment variables:
+3. Configure environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your Firebase config
+```
+
+Add your Firebase configuration to .env:
+```
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+VITE_FIREBASE_MEASUREMENT_ID=your-measurement-id
 ```
 
 4. Start development server:
@@ -143,62 +139,133 @@ npm run dev
 npm run seed
 ```
 
-## Firebase Security Rules
+## Project Structure
 
-The application uses Firestore security rules to ensure:
-- Only authenticated users can access data
-- Users can only access their own data
+```
+task-manager/
+├── public/              # Static assets
+├── src/
+│   ├── assets/         # Images and other assets
+│   ├── components/     # React components
+│   │   ├── auth/      # Authentication components
+│   │   ├── common/    # Shared components
+│   │   ├── dashboard/ # Dashboard views
+│   │   ├── layout/    # Layout components
+│   │   ├── settings/  # User settings
+│   │   ├── tasks/     # Task management
+│   │   └── teams/     # Team management
+│   ├── config/        # Configuration files
+│   ├── constants/     # Constants and enums
+│   ├── context/       # React contexts
+│   ├── hooks/         # Custom React hooks
+│   ├── scripts/       # Utility scripts
+│   ├── theme/         # Chakra UI theme
+│   ├── types/         # TypeScript types
+│   └── utils/         # Utility functions
+├── .env.example       # Example environment variables
+├── firestore.rules    # Firestore security rules
+├── storage.rules      # Storage security rules
+└── vite.config.ts     # Vite configuration
+```
+
+## Database Structure
+
+### Collections
+
+1. users
+```typescript
+{
+  id: string;              // Auth UID
+  email: string;           // User email
+  displayName: string;     // User's name
+  photoURL: string;        // Profile picture URL
+  createdAt: timestamp;    // Account creation date
+  lastLoginAt: timestamp;  // Last login date
+}
+```
+
+2. teams
+```typescript
+{
+  id: string;              // Team ID
+  name: string;            // Team name
+  description: string;     // Team description
+  createdBy: string;       // Creator's UID
+  createdAt: timestamp;    // Creation date
+  members: [               // Team members
+    {
+      id: string;         // User UID
+      email: string;      // User email
+      displayName: string;// User name
+      role: string;      // admin/member
+      joinedAt: timestamp;// Join date
+    }
+  ],
+  memberEmails: string[]; // Array of member emails for querying
+  invitedEmails: string[];// Pending invitations
+}
+```
+
+3. tasks
+```typescript
+{
+  id: string;              // Task ID
+  title: string;           // Task title
+  description: string;     // Task description
+  category: string;        // work/personal/shopping/others
+  priority: string;        // low/medium/high
+  completed: boolean;      // Task status
+  userId: string;          // Creator's UID
+  teamId: string;         // Associated team
+  assignedTo: string[];   // Assigned user UIDs
+  dueDate: timestamp;     // Due date
+  createdAt: timestamp;   // Creation date
+  updatedAt: timestamp;   // Last update date
+}
+```
+
+## Security Rules
+
+The application implements strict security rules to ensure data privacy and access control:
+
+- Authentication required for all operations
+- Users can only read/write their own data
 - Team members can only access their team's data
-- Team admins have elevated permissions
+- Team admins have elevated permissions for team management
 
 Deploy updated security rules:
 ```bash
 firebase deploy --only firestore:rules
 ```
 
-## Database Operations
+## Deployment
 
-### Create Team:
-```typescript
-const createTeam = async (name: string, description?: string) => {
-  const teamData = {
-    name,
-    description,
-    createdBy: currentUser.uid,
-    members: [{
-      id: currentUser.uid,
-      role: 'admin'
-    }],
-    memberEmails: [currentUser.email],
-    createdAt: new Date()
-  };
-  
-  await addDoc(collection(db, 'teams'), teamData);
-};
+1. Build the application:
+```bash
+npm run build
 ```
 
-### Query Teams:
-```typescript
-const getTeams = async (userEmail: string) => {
-  const q = query(
-    collection(db, 'teams'),
-    where('memberEmails', 'array-contains', userEmail)
-  );
-  
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
-};
+2. Deploy to Firebase Hosting:
+```bash
+npm run deploy
 ```
 
-### Update Team:
-```typescript
-const updateTeam = async (teamId: string, data: Partial<Team>) => {
-  const teamRef = doc(db, 'teams', teamId);
-  await updateDoc(teamRef, data);
-};
+## Development Workflow
+
+1. Create a new branch for your feature:
+```bash
+git checkout -b feature/your-feature-name
+```
+
+2. Make your changes and commit:
+```bash
+git add .
+git commit -m "feat: add your feature"
+```
+
+3. Push changes and create a pull request:
+```bash
+git push origin feature/your-feature-name
 ```
 
 ## Contributing

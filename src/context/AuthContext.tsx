@@ -1,8 +1,50 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useTransition } from 'react';
+import { Box } from '@chakra-ui/react';
 import { LoadingState } from '../components/common/LoadingState';
 import { User, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { getFirebaseAuth, getFirebaseGoogleProvider, isFirebaseInitialized } from '../config/firebase';
 import { config } from '../config/config';
+
+// Rate limiting configuration
+const RATE_LIMIT_MS = 60000; // 1 minute
+const MAX_ATTEMPTS = 5;
+
+interface RateLimitState {
+  attempts: number;
+  lastAttempt: number;
+}
+
+const useRateLimit = () => {
+  const [state, setState] = useState<RateLimitState>({
+    attempts: 0,
+    lastAttempt: 0
+  });
+
+  const checkRateLimit = useCallback(() => {
+    const now = Date.now();
+    if (now - state.lastAttempt > RATE_LIMIT_MS) {
+      setState({ attempts: 0, lastAttempt: now });
+      return true;
+    }
+    
+    if (state.attempts >= MAX_ATTEMPTS) {
+      const remainingTime = Math.ceil((RATE_LIMIT_MS - (now - state.lastAttempt)) / 1000);
+      throw new Error(`Too many attempts. Please try again in ${remainingTime} seconds.`);
+    }
+
+    setState(prev => ({
+      attempts: prev.attempts + 1,
+      lastAttempt: now
+    }));
+    return true;
+  }, [state]);
+
+  const resetRateLimit = useCallback(() => {
+    setState({ attempts: 0, lastAttempt: 0 });
+  }, []);
+
+  return { checkRateLimit, resetRateLimit };
+};
 
 interface AuthContextType {
   user: User | null;
@@ -29,185 +71,162 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const { checkRateLimit, resetRateLimit } = useRateLimit();
 
-  // Track initialization status
-  useEffect(() => {
-    if (isFirebaseInitialized()) {
-      setIsInitialized(true);
-    }
-  }, []);
-
+  // Initialize Firebase and set up auth listener
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
-    let checkInterval: NodeJS.Timeout | undefined;
+    let initializationTimer: NodeJS.Timeout | undefined;
 
     const setupAuthListener = () => {
       try {
         const auth = getFirebaseAuth();
-        console.log('Setting up auth state listener with auth instance:', {
-          currentUser: auth.currentUser,
-          settings: auth.config,
-        });
-        
         unsubscribe = auth.onAuthStateChanged(
           (user: User | null) => {
-            console.log('Auth state changed:', user ? `User ${user.uid}` : 'No user');
-            setUser(user);
-            setLoading(false);
-            setIsInitialized(true); // Mark as initialized once we get the first auth state
+            startTransition(() => {
+              setUser(user);
+              setLoading(false);
+              setIsInitialized(true);
+            });
           },
           (error: Error) => {
-            console.error('Auth state error:', error);
-            const firebaseError = error as { code?: string };
-            if (firebaseError.code === 'auth/configuration-not-found') {
-              console.error('Firebase configuration error - check your Firebase config settings and ensure all values are set correctly');
-            }
-            setError(error);
-            setLoading(false);
-            setIsInitialized(true); // Mark as initialized even if there's an error
+            startTransition(() => {
+              setError(error);
+              setLoading(false);
+              setIsInitialized(true);
+            });
           }
         );
-        console.log('Auth state listener set up');
       } catch (error) {
-        console.error('Error setting up auth listener:', error);
-        setError(error as Error);
-        setLoading(false);
-        setIsInitialized(true); // Mark as initialized even if setup fails
+        startTransition(() => {
+          setError(error as Error);
+          setLoading(false);
+          setIsInitialized(true);
+        });
       }
     };
 
-    if (!isFirebaseInitialized()) {
-      checkInterval = setInterval(() => {
-        if (isFirebaseInitialized()) {
-          clearInterval(checkInterval);
-          setupAuthListener();
-        }
-      }, 100);
-    } else {
-      setupAuthListener();
-    }
+    // Check for initialization with exponential backoff
+    const checkInitialization = (attempt = 0) => {
+      if (isFirebaseInitialized()) {
+        setupAuthListener();
+        return;
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Max 10 second delay
+      initializationTimer = setTimeout(() => checkInitialization(attempt + 1), delay);
+    };
+
+    checkInitialization();
 
     return () => {
-      if (checkInterval) {
-        clearInterval(checkInterval);
-      }
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      if (initializationTimer) clearTimeout(initializationTimer);
+      if (unsubscribe) unsubscribe();
     };
   }, []);
 
-  const signInWithGoogle = async () => {
-    try {
-      if (!isInitialized || !isFirebaseInitialized()) {
-        console.error('Attempted to sign in before Firebase initialization');
-        throw new Error('Authentication system is not ready yet. Please try again in a moment.');
+  const attemptOperation = async <T extends unknown>(
+    operation: () => Promise<T>,
+    maxAttempts = 3
+  ): Promise<T> => {
+    checkRateLimit();
+    
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const result = await operation();
+        resetRateLimit(); // Reset on success
+        return result;
+      } catch (error: any) {
+        lastError = error;
+        if (error.code === 'auth/network-request-failed') {
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+          continue;
+        }
+        throw error;
       }
+    }
+    
+    throw lastError || new Error('Operation failed after multiple attempts');
+  };
 
+  const signInWithGoogle = async () => {
+    if (!isInitialized || !isFirebaseInitialized()) {
+      throw new Error('Authentication system is not ready yet. Please try again in a moment.');
+    }
+
+    startTransition(() => {
       setLoading(true);
       setError(null);
-      
-      console.log('Starting Google sign-in...');
-      
-      // Get Firebase auth instance
-      const auth = getFirebaseAuth();
+    });
 
-      // Log the current environment and config
-      console.log('Starting authentication with:', {
-        domain: window.location.origin,
-        authConfig: {
-          domain: auth.config.authDomain,
-          apiKey: !!auth.config.apiKey
-        }
-      });
-
-      // Add short delay to ensure auth is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const provider = getFirebaseGoogleProvider();
-      
-      try {
+    try {
+      await attemptOperation(async () => {
+        const auth = getFirebaseAuth();
+        const provider = getFirebaseGoogleProvider();
         const result = await signInWithPopup(auth, provider);
-        console.log('Sign-in successful:', result.user.uid);
-        setUser(result.user);
-      } catch (error: any) {
-        console.error('Detailed sign-in error:', {
-          name: error.name,
-          code: error.code,
-          message: error.message,
-          customData: error.customData,
-          stack: error.stack
+        startTransition(() => {
+          setUser(result.user);
         });
-        
-        // Provide more user-friendly error messages
-        if (error.code === 'auth/configuration-not-found') {
-          throw new Error('Firebase authentication is not properly configured. Please verify your Firebase setup.');
-        } else if (error.code === 'auth/popup-closed-by-user') {
-          throw new Error('Sign-in was cancelled. Please try again.');
-        } else if (error.code === 'auth/popup-blocked') {
-          throw new Error('Sign-in popup was blocked. Please allow popups for this site and try again.');
-        } else if (error.code === 'auth/unauthorized-domain') {
-          throw new Error(`This domain is not authorized for Firebase authentication. Please add "${window.location.origin}" to your Firebase console's authorized domains.`);
-        } else {
-          throw error;
-        }
-      }
-    } catch (error) {
-      console.error('Sign-in error:', {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        code: error instanceof Error ? (error as any).code : 'unknown',
-        initialized: isInitialized,
-        firebaseInitialized: isFirebaseInitialized()
       });
-      setError(error as Error);
-      throw error;
+    } catch (error: any) {
+      const errorMessages: Record<string, string> = {
+        'auth/configuration-not-found': 'Authentication configuration error. Please contact support.',
+        'auth/popup-closed-by-user': 'Sign-in was cancelled.',
+        'auth/popup-blocked': 'Sign-in popup was blocked. Please allow popups for this site.',
+        'auth/unauthorized-domain': `This domain is not authorized for authentication. Domain: ${window.location.origin}`,
+        'auth/network-request-failed': 'Network error. Please check your connection.'
+      };
+      const errorMessage = errorMessages[error.code] || 'Sign-in failed. Please try again.';
+      startTransition(() => {
+        setError(new Error(errorMessage));
+      });
+      throw new Error(errorMessage);
     } finally {
-      setLoading(false);
+      startTransition(() => {
+        setLoading(false);
+      });
     }
   };
 
   const signOut = async () => {
-    try {
-      if (!isInitialized || !isFirebaseInitialized()) {
-        console.error('Attempted to sign out before Firebase initialization');
-        throw new Error('Authentication system is not ready yet. Please try again in a moment.');
-      }
+    if (!isInitialized || !isFirebaseInitialized()) {
+      throw new Error('Authentication system is not ready yet. Please try again in a moment.');
+    }
 
+    startTransition(() => {
       setLoading(true);
       setError(null);
-      console.log('Starting sign out...');
-      
-      // Wait a short time to ensure Firebase is fully initialized
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const auth = getFirebaseAuth();
-      
-      if (!auth.currentUser) {
-        console.log('No user currently signed in');
-        setUser(null);
-        return;
-      }
-      
-      await firebaseSignOut(auth);
-      console.log('Sign out successful');
-      setUser(null);
-    } catch (error: any) {
-      console.error('Sign out error:', {
-        name: error.name,
-        code: error.code,
-        message: error.message,
-        stack: error.stack
+    });
+
+    try {
+      await attemptOperation(async () => {
+        const auth = getFirebaseAuth();
+        if (auth.currentUser) {
+          await firebaseSignOut(auth);
+        }
+        startTransition(() => {
+          setUser(null);
+        });
       });
-      throw new Error('Failed to sign out. Please try again.');
+    } catch (error) {
+      const errorMessage = 'Failed to sign out. Please try again.';
+      startTransition(() => {
+        setError(new Error(errorMessage));
+      });
+      throw new Error(errorMessage);
     } finally {
-      setLoading(false);
+      startTransition(() => {
+        setLoading(false);
+      });
     }
   };
 
   const value = {
     user,
-    loading,
+    loading: loading || isPending,
     error,
     signInWithGoogle,
     signOut,
@@ -223,12 +242,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return "";
   };
 
-  const shouldShowLoading = !isInitialized || loading;
+  const shouldShowLoading = !isInitialized || loading || isPending;
   const loadingMessage = getLoadingMessage();
 
   return (
     <AuthContext.Provider value={value}>
-      {shouldShowLoading ? <LoadingState message={loadingMessage} minHeight="100vh" /> : children}
+      {shouldShowLoading ? (
+        <Box minH="100vh">
+          <LoadingState message={loadingMessage} />
+        </Box>
+      ) : children}
     </AuthContext.Provider>
   );
 };
