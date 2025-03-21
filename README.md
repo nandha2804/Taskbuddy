@@ -2,7 +2,7 @@
 
 A modern, feature-rich task management application built with React, TypeScript, and Firebase. The application provides a robust platform for managing tasks, collaborating with teams, and staying organized.
 
-**Live Demo:** [https://taskbuddy-fawn.vercel.app/login](https://taskbuddy-fawn.vercel.app/login)
+**Live Demo:** [https://taskbuddy-fawn.vercel.app](https://taskbuddy-fawn.vercel.app)
 
 ## Features
 
@@ -33,6 +33,36 @@ A modern, feature-rich task management application built with React, TypeScript,
   - Keyboard shortcuts
   - File attachments support
   - Drag and drop interface
+
+## Screenshots
+
+<table>
+<tr>
+<td><img src="public/1 (1).png" alt="Screenshot 1" width="280"/></td>
+<td><img src="public/1 (2).png" alt="Screenshot 2" width="280"/></td>
+<td><img src="public/1 (3).png" alt="Screenshot 3" width="280"/></td>
+</tr>
+<tr>
+<td><img src="public/1 (4).png" alt="Screenshot 4" width="280"/></td>
+<td><img src="public/1 (5).png" alt="Screenshot 5" width="280"/></td>
+<td><img src="public/1 (6).png" alt="Screenshot 6" width="280"/></td>
+</tr>
+<tr>
+<td><img src="public/1 (7).png" alt="Screenshot 7" width="280"/></td>
+<td><img src="public/1 (8).png" alt="Screenshot 8" width="280"/></td>
+<td><img src="public/1 (9).png" alt="Screenshot 9" width="280"/></td>
+</tr>
+<tr>
+<td><img src="public/1 (10).png" alt="Screenshot 10" width="280"/></td>
+<td><img src="public/1 (11).png" alt="Screenshot 11" width="280"/></td>
+<td><img src="public/1 (12).png" alt="Screenshot 12" width="280"/></td>
+</tr>
+<tr>
+<td><img src="public/1 (13).png" alt="Screenshot 13" width="280"/></td>
+<td><img src="public/1 (14).png" alt="Screenshot 14" width="280"/></td>
+<td></td>
+</tr>
+</table>
 
 ## Technology Stack
 
