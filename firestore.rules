@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTeamMember(teamId) {
+      let team = get(/databases/$(database)/documents/teams/$(teamId));
+      return isSignedIn() && team.data.memberEmails.hasAny([request.auth.token.email]);
+    }
+
+    function isTeamAdmin(teamId) {
+      let team = get(/databases/$(database)/documents/teams/$(teamId));
+      return isSignedIn() && team.data.members[request.auth.uid].role == 'admin';
+    }
+
+    function isValidTaskData() {
+      let data = request.resource.data;
+      return data.title is string
+        && data.title.size() <= 100
+        && (data.description == null || (data.description is string && data.description.size() <= 500))
+        && data.category in ['work', 'personal', 'shopping', 'others']
+        && data.priority in ['low', 'medium', 'high']
+        && data.status in ['active', 'inProgress', 'completed', 'deleted']
+        && data.userId is string;
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.uid == userId;
+    }
+
+    match /userSettings/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['defaultView', 'emailNotifications', 'desktopNotifications', 'defaultTaskCategory', 'theme'])
+        && (request.resource.data.defaultView == 'list' || request.resource.data.defaultView == 'board')
+        && request.resource.data.emailNotifications is bool
+        && request.resource.data.desktopNotifications is bool
+        && (request.resource.data.defaultTaskCategory in ['work', 'personal', 'shopping', 'others'])
+        && (request.resource.data.theme in ['light', 'dark', 'system']);
+    }
+
+    match /userProfiles/{userId} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Teams
+    match /teams/{teamId} {
+      allow create: if isSignedIn() 
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow read: if isSignedIn() 
+        && (resource.data.memberEmails.hasAny([request.auth.token.email])
+            || resource.data.invitedEmails.hasAny([request.auth.token.email]));
+
+      allow update: if isSignedIn() 
+        && (resource.data.members[request.auth.uid].role == 'admin'
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'invitedEmails']));
+
+      allow delete: if isSignedIn() 
+        && resource.data.members[request.auth.uid].role == 'admin';
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow create: if isSignedIn() 
+        && request.resource.data.userId == request.auth.uid
+        && isValidTaskData()
+        && (!request.resource.data.teamId || isTeamMember(request.resource.data.teamId));
+      
+      allow read: if isSignedIn() 
+        && (
+          resource.data.userId == request.auth.uid 
+          || (resource.data.teamId != null && isTeamMember(resource.data.teamId))
+          || resource.data.assignedTo.hasAny([request.auth.uid])
+        );
+      
+      allow update: if isSignedIn() 
+        && (
+          resource.data.userId == request.auth.uid 
+          || (resource.data.teamId != null && isTeamMember(resource.data.teamId))
+          || resource.data.assignedTo.hasAny([request.auth.uid])
+        )
+        && isValidTaskData()
+        && (!request.resource.data.teamId || isTeamMember(request.resource.data.teamId));
+      
+      allow delete: if isSignedIn() 
+        && (resource.data.userId == request.auth.uid 
+            || (resource.data.teamId != null && isTeamAdmin(resource.data.teamId)));
+    }
+
+    // Comments
+    match /comments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+        && request.resource.data.userId == request.auth.uid
+        && (
+          get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.userId == request.auth.uid
+          || isTeamMember(get(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.teamId)
+        );
+      allow update, delete: if request.auth.uid == resource.data.userId;
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+    <script>
+      // Color mode initialization script
+      (() => {
+        const colorMode = localStorage.getItem('chakra-ui-color-mode');
+        if (colorMode) {
+          document.documentElement.style.setProperty(
+            '--chakra-ui-color-mode',
+            colorMode
+          );
+          document.documentElement.setAttribute('data-theme', colorMode);
+        } else {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const defaultMode = prefersDark ? 'dark' : 'light';
+          document.documentElement.style.setProperty(
+            '--chakra-ui-color-mode',
+            defaultMode
+          );
+          document.documentElement.setAttribute('data-theme', defaultMode);
+          localStorage.setItem('chakra-ui-color-mode', defaultMode);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
