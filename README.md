@@ -2,7 +2,7 @@
 
 A modern, feature-rich task management application built with React, TypeScript, and Firebase. The application provides a robust platform for managing tasks, collaborating with teams, and staying organized.
 
-**Live Demo:** [https://taskbuddy-fawn.vercel.app](https://taskbuddy-fawn.vercel.app)
+**Live Demo:** [https://taskbuddy-wheat.vercel.app](https://taskbuddy-wheat.vercel.app)
 
 ## Features
 
