@@ -9,15 +9,17 @@ import {
 import { FiInbox } from 'react-icons/fi';
 
 interface EmptyStateProps {
-  title: string;
+  title?: string;
   message: string;
   icon?: React.ElementType;
+  height?: string;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   message,
   icon = FiInbox,
+  height,
 }) => {
   const bgColor = useColorModeValue('gray.50', 'gray.700');
   const textColor = useColorModeValue('gray.600', 'gray.300');
@@ -29,6 +31,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       borderRadius="xl"
       textAlign="center"
       width="100%"
+      height={height}
     >
       <VStack spacing={4}>
         <Icon

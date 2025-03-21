@@ -89,6 +89,7 @@ export const TeamCard: React.FC<TeamCardProps> = ({ team, onClick }) => {
                     name={member.displayName || undefined}
                     src={member.photoURL || undefined}
                     bg={member.role === 'admin' ? 'purple.500' : 'blue.500'}
+                    borderRadius="sm"
                   />
                 </Tooltip>
               ))}
@@ -113,7 +114,7 @@ export const TeamCard: React.FC<TeamCardProps> = ({ team, onClick }) => {
               value={(team.members.length / (team.members.length + pendingCount)) * 100}
               size="sm"
               colorScheme="blue"
-              borderRadius="full"
+              borderRadius="sm"
             />
           </Box>
         </VStack>

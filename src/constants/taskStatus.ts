@@ -16,7 +16,7 @@ export interface TaskStatusConfig {
 
 export const taskStatusColumns: TaskStatusConfig[] = [
   {
-    id: 'todo',
+    id: 'active',
     title: 'To Do',
     icon: FiClock,
     color: 'blue.500',

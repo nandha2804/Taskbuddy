@@ -10,6 +10,14 @@ export interface TaskInput {
   teamId?: string;
   assignedTo?: string[];
   status?: TaskStatus;
+  completionDetails?: TaskCompletionDetails;
+}
+
+export interface TaskCompletionDetails {
+  description: string;
+  completedAt: string;
+  completedBy: string;
+  attachments: AttachmentMetadata[];
 }
 
 export interface Task extends Omit<TaskInput, 'dueDate'> {
@@ -21,6 +29,7 @@ export interface Task extends Omit<TaskInput, 'dueDate'> {
   dueDate: string | null;
   teamId?: string;
   assignedTo: string[];
+  completionDetails?: TaskCompletionDetails;
 }
 
 export type TaskStatus = 'active' | 'inProgress' | 'completed' | 'deleted';

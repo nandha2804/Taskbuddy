@@ -84,8 +84,10 @@ export const useTasks = ({ userId, teamId, assignedToMe }: UseTasksParams): UseT
     isLoading: loading,
     error,
   } = useQuery({
-    queryKey: ['tasks', { userId, teamId, assignedToMe }],
-    queryFn: async () => {
+    queryKey: [{ scope: 'tasks', userId, teamId, assignedToMe }],
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 seconds
+    queryFn: async ({ queryKey }) => {
       try {
         checkFirebaseInit();
         
@@ -109,6 +111,7 @@ export const useTasks = ({ userId, teamId, assignedToMe }: UseTasksParams): UseT
 
   // Add task
   const addTaskMutation = useMutation({
+    mutationKey: ['addTask'],
     mutationFn: async (newTask: TaskInput): Promise<Task> => {
       if (!userId) throw new Error('User not authenticated');
       checkFirebaseInit();
@@ -135,6 +138,7 @@ export const useTasks = ({ userId, teamId, assignedToMe }: UseTasksParams): UseT
           createdAt: now.toDate().toISOString(),
           updatedAt: now.toDate().toISOString(),
           dueDate: newTask.dueDate,
+          assignedTo: newTask.assignedTo || [],
         };
       } catch (error) {
         console.error('Error adding task:', error);
@@ -145,13 +149,20 @@ export const useTasks = ({ userId, teamId, assignedToMe }: UseTasksParams): UseT
         );
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    },
+    meta: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: 'tasks' }],
+          type: 'all',
+          refetchType: 'active',
+        });
+      }
+    }
   });
 
   // Update task
   const updateTaskMutation = useMutation({
+    mutationKey: ['updateTask'],
     mutationFn: async ({ id, data }: { id: string; data: Partial<TaskInput> }) => {
       if (!userId) throw new Error('User not authenticated');
       checkFirebaseInit();
@@ -165,9 +176,15 @@ export const useTasks = ({ userId, teamId, assignedToMe }: UseTasksParams): UseT
 
       await updateDoc(taskRef, updateData);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    },
+    meta: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: 'tasks' }],
+          type: 'all',
+          refetchType: 'active',
+        });
+      }
+    }
   });
 
   // Delete task (soft delete)

@@ -46,7 +46,7 @@ const NavLink = ({ to, children }: { to: string; children: React.ReactNode }) =>
       to={to}
       px={4}
       py={2}
-      rounded="md"
+      rounded="sm"
       bg={isActive ? activeBg : 'transparent'}
       _hover={{
         bg: !isActive ? hoverBg : activeBg,
@@ -122,26 +122,30 @@ export const Navigation = () => {
         </HStack>
 
         <HStack spacing={4}>
-          <IconButton
-            aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
-            icon={colorMode === 'light' ? <Icon as={FiMoon} /> : <Icon as={FiSun} />}
+          <Button
+            leftIcon={colorMode === 'light' ? <Icon as={FiMoon} /> : <Icon as={FiSun} />}
             onClick={toggleColorMode}
             variant="ghost"
             size="sm"
-          />
+            rounded="sm"
+            aria-label={`Switch to ${colorMode === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {colorMode === 'light' ? 'Dark' : 'Light'}
+          </Button>
 
           <Menu>
             <MenuButton
               as={Button}
-              rounded="full"
+              rounded="sm"
               variant="link"
               cursor="pointer"
               minW={0}
             >
               <Avatar 
-                size="sm" 
-                name={user?.displayName || undefined} 
+                size="sm"
+                name={user?.displayName || undefined}
                 src={user?.photoURL || undefined}
+                borderRadius="sm"
               />
             </MenuButton>
             <MenuList>

@@ -1,158 +1,187 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
-  ModalFooter,
   ModalBody,
-  ModalCloseButton,
+  ModalFooter,
   Button,
   FormControl,
   FormLabel,
   Textarea,
-  Select,
   VStack,
-  useColorModeValue,
+  HStack,
+  Text,
+  useToast,
+  Box,
+  IconButton,
 } from '@chakra-ui/react';
-import { Task } from '../../types/models';
-import { useAuth } from '../../context/AuthContext';
-import { FileUpload } from '../common/FileUpload';
-import { config } from '../../config/config';
-import { useCustomToast } from '../common/CustomToast';
+import { FiUpload, FiX, FiCheckCircle } from 'react-icons/fi';
+import { useDropzone } from 'react-dropzone';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Task, AttachmentMetadata, TaskCompletionDetails } from '../../types';
 
 interface TaskCompletionModalProps {
+  task: Task;
   isOpen: boolean;
   onClose: () => void;
-  task: Task;
-  onUpdate: (status: Task['status'], completionDetails?: Task['completionDetails']) => Promise<void>;
+  onUpdateTask: (taskId: string, data: Partial<Task>) => Promise<void>;
 }
 
 export const TaskCompletionModal: React.FC<TaskCompletionModalProps> = ({
+  task,
   isOpen,
   onClose,
-  task,
-  onUpdate,
-}) => {
-  const [status, setStatus] = useState<Task['status']>(task.status);
-  const [completionDescription, setCompletionDescription] = useState('');
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  onUpdateTask,
+}): React.ReactElement => {
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [files, setFiles] = useState<AttachmentMetadata[]>([]);
+  const toast = useToast();
 
-  const { user } = useAuth();
-  const toast = useCustomToast();
-  const bgColor = useColorModeValue('white', 'gray.700');
-
-  useEffect(() => {
-    if (task) {
-      setStatus(task.status);
-      setCompletionDescription(task.completionDetails?.description || '');
-      setAttachments(task.completionDetails?.attachments?.map(a => a.url) || []);
-    }
-  }, [task]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     try {
-      setIsSubmitting(true);
+      setUploading(true);
+      const storage = getStorage();
+      const newFiles: AttachmentMetadata[] = [];
 
-      const completionDetails = status === 'completed' ? {
-        description: completionDescription.trim(),
-        attachments: attachments.map((url, index) => ({
-          id: `${task.id}-completion-${index}`,
-          url,
-          name: url.split('/').pop() || 'file',
-          type: 'completion-attachment',
-          size: 0, // Size is not relevant for completion attachments
-          uploadedBy: user.uid,
+      for (const file of acceptedFiles) {
+        const storageRef = ref(storage, `task-completions/${task.id}/${file.name}`);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+
+        newFiles.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
           uploadedAt: new Date(),
-        })),
-        completedAt: new Date().toISOString(),
-        completedBy: user.uid,
-      } : undefined;
+          uploadedBy: task.userId,
+        });
+      }
 
-      await onUpdate(status, completionDetails);
-      toast.success('Task status updated successfully');
-      onClose();
+      setFiles((prev) => [...prev, ...newFiles]);
+      toast({
+        title: 'Files uploaded successfully',
+        status: 'success',
+        duration: 3000,
+      });
     } catch (error) {
-      toast.error(
-        'Failed to update task status',
-        error instanceof Error ? error.message : 'An unexpected error occurred'
-      );
+      toast({
+        title: 'Error uploading files',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        status: 'error',
+        duration: 5000,
+      });
     } finally {
-      setIsSubmitting(false);
+      setUploading(false);
     }
+  }, [task.id, task.userId, toast]);
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    multiple: true,
+  });
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleFileUpload = (urls: string[]) => {
-    setAttachments(urls);
+  const handleComplete = async () => {
+    try {
+      const completionDetails: TaskCompletionDetails = {
+        description,
+        completedAt: new Date().toISOString(),
+        completedBy: task.userId,
+        attachments: files,
+      };
+
+      await onUpdateTask(task.id, {
+        status: 'completed',
+        completionDetails,
+      });
+
+      toast({
+        title: 'Task marked as completed',
+        status: 'success',
+        duration: 3000,
+      });
+      onClose();
+    } catch (error) {
+      toast({
+        title: 'Error completing task',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        status: 'error',
+        duration: 5000,
+      });
+    }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
-      <ModalContent bg={bgColor}>
-        <form onSubmit={handleSubmit}>
-          <ModalHeader>Update Task Status</ModalHeader>
-          <ModalCloseButton />
+      <ModalContent>
+        <ModalHeader>Complete Task</ModalHeader>
+        <ModalBody>
+          <VStack spacing={4} align="stretch">
+            <FormControl>
+              <FormLabel>Completion Description</FormLabel>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Add details about task completion..."
+              />
+            </FormControl>
 
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Status</FormLabel>
-                <Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as Task['status'])}
-                >
-                  <option value="todo">To Do</option>
-                  <option value="inProgress">In Progress</option>
-                  <option value="completed">Completed</option>
-                </Select>
-              </FormControl>
+            <Box
+              {...getRootProps()}
+              p={4}
+              border="2px dashed"
+              borderColor="gray.200"
+              borderRadius="md"
+              cursor="pointer"
+            >
+              <input {...getInputProps()} />
+              <VStack spacing={2}>
+                <FiUpload size={24} />
+                <Text>Drop files here or click to upload</Text>
+              </VStack>
+            </Box>
 
-              {status === 'completed' && (
-                <>
-                  <FormControl>
-                    <FormLabel>Completion Details</FormLabel>
-                    <Textarea
-                      value={completionDescription}
-                      onChange={(e) => setCompletionDescription(e.target.value)}
-                      placeholder="Add details about task completion..."
-                      resize="vertical"
-                      minH="100px"
+            {files.length > 0 && (
+              <VStack align="stretch" spacing={2}>
+                {files.map((file, index) => (
+                  <HStack key={index} justify="space-between" p={2} bg="gray.50" rounded="md">
+                    <Text>{file.name}</Text>
+                    <IconButton
+                      aria-label="Remove file"
+                      icon={<FiX />}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeFile(index)}
                     />
-                  </FormControl>
+                  </HStack>
+                ))}
+              </VStack>
+            )}
+          </VStack>
+        </ModalBody>
 
-                  <FormControl>
-                    <FormLabel>Attachments</FormLabel>
-                    <FileUpload
-                      onUploadComplete={handleFileUpload}
-                      folder={config.storage.attachments}
-                      maxFiles={config.defaults.maxFiles}
-                      currentFiles={attachments}
-                    />
-                  </FormControl>
-                </>
-              )}
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
+        <ModalFooter>
+          <HStack spacing={3}>
+            <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              colorScheme="blue"
-              type="submit"
-              isLoading={isSubmitting}
-              loadingText="Updating..."
+              colorScheme="green"
+              onClick={handleComplete}
+              isLoading={uploading}
+              leftIcon={<FiCheckCircle />}
             >
-              Update Status
+              Complete Task
             </Button>
-          </ModalFooter>
-        </form>
+          </HStack>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

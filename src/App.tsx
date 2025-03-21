@@ -7,7 +7,7 @@ import { Layout } from './components/layout/Layout';
 import { PrivateRoute } from './components/auth/PrivateRoute';
 import { Login } from './components/auth/Login';
 import { TaskList } from './components/tasks/TaskList';
-import { TaskBoard } from './components/tasks/TaskBoard';
+import { TaskBoardPage } from './components/tasks/TaskBoardPage';
 import { TeamPage } from './components/teams/TeamPage';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { OverviewPage } from './components/dashboard/OverviewPage';
@@ -56,7 +56,7 @@ function App() {
                     path="/board"
                     element={
                       <PrivateRoute>
-                        <TaskBoard />
+                        <TaskBoardPage />
                       </PrivateRoute>
                     }
                   />

@@ -4,34 +4,45 @@ import { TaskStatus } from '../../types';
 
 interface TaskStatusBadgeProps {
   status: TaskStatus;
+  isSelected?: boolean;
+  onClick?: () => void;
 }
 
-export const TaskStatusBadge: React.FC<TaskStatusBadgeProps> = ({ status }) => {
+export const TaskStatusBadge: React.FC<TaskStatusBadgeProps> = ({
+  status,
+  isSelected = false,
+  onClick
+}) => {
   const getStatusConfig = (status: TaskStatus) => {
     switch (status) {
       case 'active':
         return {
-          colorScheme: 'blue',
+          color: 'blue.500',
+          bgColor: 'blue.50',
           label: 'To Do'
         };
       case 'inProgress':
         return {
-          colorScheme: 'orange',
+          color: 'orange.500',
+          bgColor: 'orange.50',
           label: 'In Progress'
         };
       case 'completed':
         return {
-          colorScheme: 'green',
+          color: 'green.500',
+          bgColor: 'green.50',
           label: 'Completed'
         };
       case 'deleted':
         return {
-          colorScheme: 'red',
+          color: 'red.500',
+          bgColor: 'red.50',
           label: 'Deleted'
         };
       default:
         return {
-          colorScheme: 'gray',
+          color: 'gray.500',
+          bgColor: 'gray.50',
           label: status
         };
     }
@@ -41,11 +52,21 @@ export const TaskStatusBadge: React.FC<TaskStatusBadgeProps> = ({ status }) => {
 
   return (
     <Badge
-      colorScheme={config.colorScheme}
-      variant="subtle"
-      px={2}
-      py={0.5}
-      borderRadius="full"
+      bg={isSelected ? config.color : config.bgColor}
+      color={isSelected ? 'white' : config.color}
+      px={3}
+      py={1}
+      borderRadius="md"
+      cursor={onClick ? 'pointer' : 'default'}
+      onClick={onClick}
+      _hover={
+        onClick
+          ? {
+              bg: config.color,
+              color: 'white',
+            }
+          : undefined
+      }
     >
       {config.label}
     </Badge>

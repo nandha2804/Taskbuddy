@@ -50,7 +50,7 @@ export const OverviewPage = () => {
 
   // Calculate task statistics
   const totalTasks = tasks?.length || 0;
-  const completedTasks = tasks?.filter(task => task.completed).length || 0;
+  const completedTasks = tasks?.filter(task => task.status === 'completed').length || 0;
   const completionRate = totalTasks ? (completedTasks / totalTasks) * 100 : 0;
   const recentTasks = tasks?.slice(0, 5) || [];
 
@@ -148,16 +148,26 @@ export const OverviewPage = () => {
                     <HStack justify="space-between">
                       <HStack>
                         <Icon
-                          as={task.completed ? FiCheckCircle : FiClock}
-                          color={task.completed ? 'green.500' : 'blue.500'}
+                          as={task.status === 'completed' ? FiCheckCircle : FiClock}
+                          color={task.status === 'completed' ? 'green.500' : 'blue.500'}
                         />
                         <Text>{task.title}</Text>
                       </HStack>
                       <Badge
-                        colorScheme={task.completed ? 'green' : 'blue'}
+                        colorScheme={
+                          task.status === 'completed'
+                            ? 'green'
+                            : task.status === 'inProgress'
+                            ? 'orange'
+                            : 'blue'
+                        }
                         variant="subtle"
                       >
-                        {task.completed ? 'Completed' : 'In Progress'}
+                        {task.status === 'completed'
+                          ? 'Completed'
+                          : task.status === 'inProgress'
+                          ? 'In Progress'
+                          : 'To Do'}
                       </Badge>
                     </HStack>
                   </ListItem>
